@@ -1,0 +1,23 @@
+# Dependencias
+node_modules/
+
+# Variables de entorno (SECRETOS)
+.env
+.env.*
+
+# Logs
+npm-debug.log
+yarn-error.log
+
+# Docker
+*.tar
+
+# Sistema operativo
+.DS_Store
+
+# IDE / Editor
+.vscode/
+.idea/
+
+# Coverage
+coverage/

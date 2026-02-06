@@ -1,0 +1,11 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: academic-service
+spec:
+  type: ClusterIP
+  selector:
+    app: academic-service
+  ports:
+    - port: 3002
+      targetPort: 3002

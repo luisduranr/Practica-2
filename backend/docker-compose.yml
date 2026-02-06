@@ -1,0 +1,58 @@
+version: "3.8"
+services:
+  # =========================
+  # USERS SERVICE (Auth)
+  # =========================
+  users-service:
+    build: ./users-service
+    container_name: users-service
+    env_file:
+      - ./users-service/.env
+    expose:
+      - "3001"
+    networks:
+      - backend-net
+
+  # =========================
+  # ACADEMIC SERVICE (Courses)
+  # =========================
+  academic-service:
+    build: ./academic-service
+    container_name: academic-service
+    env_file:
+      - ./academic-service/.env
+    expose:
+      - "3002"
+    networks:
+      - backend-net
+
+  # =========================
+  # API GATEWAY
+  # =========================
+  api-gateway:
+    build: ./api-gateway
+    container_name: api-gateway
+    ports:
+      - "3000:3000"
+    depends_on:
+      - users-service
+      - academic-service
+    networks:
+      - backend-net
+
+  # =========================
+  # FRONTEND (React SPA)
+  # =========================
+  frontend:
+    build: ../frontend    
+    container_name: frontend
+    ports:
+      - "5173:4173"
+    depends_on:
+      - api-gateway
+    networks:
+      - backend-net
+
+networks:
+  backend-net:
+    driver: bridge

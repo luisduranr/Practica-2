@@ -1,0 +1,12 @@
+# 🎯 Objetivo de la regla
+# Detectar un patrón inseguro común en aplicaciones Node.js / JavaScript:
+rules:
+  - id: no-eval-usage
+    languages:
+      - javascript
+      - typescript
+    message: >
+      El uso de eval() es inseguro y puede permitir ejecución de código arbitrario.
+      Evite eval y utilice alternativas seguras.
+    severity: ERROR
+    pattern: eval($X)

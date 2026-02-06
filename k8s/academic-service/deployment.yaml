@@ -1,0 +1,20 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: academic-service
+  namespace: backend
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: academic-service
+  template:
+    metadata:
+      labels:
+        app: academic-service
+    spec:
+      containers:
+        - name: academic-service
+          image: academic-service:latest
+          ports:
+            - containerPort: 3002

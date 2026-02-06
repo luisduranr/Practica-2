@@ -1,0 +1,14 @@
+rules:
+  - id: unvalidated-user-input
+    languages:
+      - javascript
+      - typescript
+    message: >
+      Se está utilizando un input del usuario (req.body, req.query o req.params)
+      sin validación previa. Esto puede provocar vulnerabilidades de inyección.
+    severity: ERROR
+    patterns:
+      - pattern: $FUNC($INPUT)
+      - metavariable-pattern:
+          metavariable: $INPUT
+          pattern: req.$SOURCE.$FIELD

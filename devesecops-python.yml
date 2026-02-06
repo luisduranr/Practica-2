@@ -1,0 +1,58 @@
+name: DevSecOps CI/CD – Python Backend
+
+on:
+  push:
+    branches: ["main"]
+  pull_request:
+
+jobs:
+  python-backend:
+    runs-on: ubuntu-latest
+
+    steps:
+    # =========================
+    # 1. Checkout
+    # =========================
+    - name: Checkout repository
+      uses: actions/checkout@v4
+
+    # =========================
+    # 2. Setup Python
+    # =========================
+    - name: Setup Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: "3.11"
+
+    # =========================
+    # 3. Install dependencies
+    # =========================
+    - name: Install dependencies
+      run: |
+        cd backend/users-service
+        pip install -r requirements.txt
+
+    # =========================
+    # 4. Run tests (pytest)
+    # =========================
+    - name: Run tests
+      run: |
+        cd backend/users-service
+        pytest
+
+    # =========================
+    # 5. Dependency security (pip-audit)
+    # =========================
+    - name: Dependency audit
+      run: |
+        cd backend/users-service
+        pip install pip-audit
+        pip-audit
+
+    # =========================
+    # 6. SAST – Semgrep
+    # =========================
+    - name: Run Semgrep
+      run: |
+        pip install semgrep
+        semgrep --config=auto

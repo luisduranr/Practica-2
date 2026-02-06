@@ -1,0 +1,120 @@
+name: DevSecOps CI/CD Pipeline
+on:
+  push:
+    branches: [ "main" ]
+  pull_request:
+jobs:
+  devsecops:
+    runs-on: ubuntu-latest
+    steps:
+    # =========================
+    # 1. Checkout
+    # =========================
+    - name: Checkout repository
+      uses: actions/checkout@v4
+
+    # =========================
+    # 2. Setup Node
+    # =========================
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: 20
+
+    # =========================
+    # 3. Install & Test Backend
+    # =========================
+    - name: Install & Test users-service
+      run: |
+        cd backend/users-service
+        npm ci
+        npm test
+
+    - name: Install & Test academic-service
+      run: |
+        cd backend/academic-service
+        npm ci
+        npm test
+
+    - name: Install & Test api-gateway
+      run: |
+        cd backend/api-gateway
+        npm ci
+        npm test
+
+    # =========================
+    # 4. Install & Test Frontend
+    # =========================
+    - name: Install & Test frontend
+      run: |
+        cd frontend
+        npm ci
+        npm test
+    # =========================
+    # 5. SAST – Semgrep
+    # =========================
+    - name: Install Semgrep
+      run: |
+        python3 -m pip install --upgrade pip
+        pip install semgrep
+    - name: SAST user-service
+      run: |
+        cd backend/users-service
+        semgrep --config=auto --severity=ERROR
+    - name: SAST academic-service
+      run: |
+        cd backend/academic-service
+        semgrep --config=auto --severity=ERROR
+    - name: SAST api-gateway
+      run: |
+        cd backend/api-gateway
+        semgrep --config=auto --severity=ERROR
+    # =========================
+    # 6. Docker Build
+    # =========================
+    - name: Set up Docker Buildx
+      uses: docker/setup-buildx-action@v3
+
+    - name: Build Docker images
+      run: |
+        docker compose -f backend/docker-compose.yml build
+
+    # =========================
+    # 7. SCA – Trivy
+    # =========================
+    - name: Trivy scan users-service
+      uses: aquasecurity/trivy-action@0.20.0
+      with:
+        image-ref: users-service
+        severity: CRITICAL
+        exit-code: 1
+
+    - name: Trivy scan academic-service
+      uses: aquasecurity/trivy-action@0.20.0
+      with:
+        image-ref: academic-service
+        severity: CRITICAL
+        exit-code: 1
+
+    - name: Trivy scan api-gateway
+      uses: aquasecurity/trivy-action@0.20.0
+      with:
+        image-ref: api-gateway
+        severity: CRITICAL
+        exit-code: 1
+
+    # =========================
+    # 8. Smoke test
+    # =========================
+    - name: Run docker-compose
+      run: |
+        docker compose -f backend/docker-compose.yml up -d
+        sleep 15
+
+    - name: Smoke test API Gateway
+      run: |
+        curl http://localhost:3000/health
+
+    - name: Shutdown services
+      if: always()
+      run: docker compose -f backend/docker-compose.yml down
