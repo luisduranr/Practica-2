@@ -12,12 +12,18 @@ app.get("/health", (_req, res) => {
   res.json({ status: "api-gateway OK" });
 });
 
+const USERS_SERVICE_URL =
+  process.env.USERS_SERVICE_URL || "http://localhost:3001";
+const ACADEMIC_SERVICE_URL =
+  process.env.ACADEMIC_SERVICE_URL || "http://localhost:3002";
+
 // AUTH → users-service
 app.use(
   "/auth",
   createProxyMiddleware({
-    target: "http://users-service:3001",
+    target: USERS_SERVICE_URL,
     changeOrigin: true,
+    pathRewrite: { "^/auth": "" },
   })
 );
 
@@ -25,8 +31,9 @@ app.use(
 app.use(
   "/courses",
   createProxyMiddleware({
-    target: "http://academic-service:3002",
+    target: ACADEMIC_SERVICE_URL,
     changeOrigin: true,
+    pathRewrite: { "^/courses": "/" },
   })
 );
 
