@@ -1,4 +1,5 @@
 ## Enfoque de la práctica
+
 Esta práctica debe ser implementada, no solo diseñada.
 El objetivo es aplicar DevSecOps de manera práctica, integrando:
         - - Front-end
