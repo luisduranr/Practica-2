@@ -127,11 +127,30 @@ jobs:
     - name: Run docker-compose
       run: |
         docker compose -f backend/docker-compose.yml up -d
-        sleep 15
+        sleep 20
 
-    - name: Smoke test API Gateway
+    - name: Smoke test – API Gateway health
       run: |
-        curl http://localhost:3000/health
+        curl -sf http://localhost:3000/health | grep -q "api-gateway OK"
+        echo "API Gateway OK"
+
+    - name: Smoke test – Login (users-service via gateway)
+      run: |
+        RESPONSE=$(curl -sf -X POST http://localhost:3000/auth/login \
+          -H "Content-Type: application/json" \
+          -d '{"email":"admin@test.cl","password":"123456"}')
+        echo "$RESPONSE" | grep -q "token"
+        echo "Login OK – JWT recibido"
+
+    - name: Smoke test – Courses (academic-service via gateway)
+      run: |
+        TOKEN=$(curl -sf -X POST http://localhost:3000/auth/login \
+          -H "Content-Type: application/json" \
+          -d '{"email":"admin@test.cl","password":"123456"}' \
+          | grep -o '"token":"[^"]*"' | cut -d'"' -f4)
+        curl -sf http://localhost:3000/courses \
+          -H "Authorization: Bearer $TOKEN" | grep -q "DevSecOps"
+        echo "Courses OK"
 
     - name: Shutdown services
       if: always()
