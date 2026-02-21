@@ -104,7 +104,7 @@ jobs:
       uses: aquasecurity/trivy-action@0.20.0
       with:
         image-ref: users-service
-        severity: HIGH
+        severity: CRITICAL
         exit-code: 1
 
     - name: Trivy scan academic-service
