@@ -1,157 +1,251 @@
 name: DevSecOps CI/CD Pipeline
+
 on:
   push:
-    branches: [ "main" ]
+    branches: ["main"]
   pull_request:
+
 jobs:
-  devsecops:
+  # =========================================
+  # 1. SETUP – Checkout + env files
+  # =========================================
+  setup:
     runs-on: ubuntu-latest
     steps:
-    # =========================
-    # 1. Checkout
-    # =========================
-    - name: Checkout repository
-      uses: actions/checkout@v4
+      - name: Checkout repository
+        uses: actions/checkout@v4
 
-    # =========================
-    # 2. Setup Node
-    # =========================
-    - name: Setup Node.js
-      uses: actions/setup-node@v4
-      with:
-        node-version: 20
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
 
-    # =========================
-    # 5.5 Create .env files (CI)
-    # =========================
-    - name: Create env files for Docker Compose
-      run: |
-        cp backend/users-service/.env.example  backend/users-service/.env
-        cp backend/academic-service/.env.example backend/academic-service/.env
-        cp backend/api-gateway/.env.example     backend/api-gateway/.env
-        cp frontend/.env.example                frontend/.env
+      - name: Create env files
+        run: |
+          cp backend/users-service/.env.example  backend/users-service/.env
+          cp backend/academic-service/.env.example backend/academic-service/.env
+          cp backend/api-gateway/.env.example     backend/api-gateway/.env
+          cp frontend/.env.example                frontend/.env
 
-    # =========================
-    # 3. Install & Test Backend
-    # =========================
-    - name: Install & Test users-service
-      run: |
-        cd backend/users-service
-        npm ci
-        npm test
+      - name: Upload env files
+        uses: actions/upload-artifact@v4
+        with:
+          name: env-files
+          path: |
+            backend/users-service/.env
+            backend/academic-service/.env
+            backend/api-gateway/.env
+            frontend/.env
 
-    - name: Install & Test academic-service
-      run: |
-        cd backend/academic-service
-        npm ci
-        npm test
+  # =========================================
+  # 2. TESTS – Paralelo por servicio
+  # =========================================
+  test-users-service:
+    needs: setup
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: Download env files
+        uses: actions/download-artifact@v4
+        with:
+          name: env-files
+      - name: Install & Test
+        run: |
+          cd backend/users-service
+          npm ci
+          npm test
 
-    - name: Install & Test api-gateway
-      run: |
-        cd backend/api-gateway
-        npm ci
-        npm test
+  test-academic-service:
+    needs: setup
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: Download env files
+        uses: actions/download-artifact@v4
+        with:
+          name: env-files
+      - name: Install & Test
+        run: |
+          cd backend/academic-service
+          npm ci
+          npm test
 
-    # =========================
-    # 4. Install & Test Frontend
-    # =========================
-    - name: Install & Test frontend
-      run: |
-        cd frontend
-        npm ci
-        npm test
-    # =========================
-    # 5. SAST – Semgrep
-    # =========================
-    - name: Install Semgrep
-      run: |
-        python3 -m pip install --upgrade pip
-        pip install semgrep
-    - name: SAST user-service
-      run: |
-        cd backend/users-service
-        semgrep --config=auto --severity=ERROR
-    - name: SAST academic-service
-      run: |
-        cd backend/academic-service
-        semgrep --config=auto --severity=ERROR
-    - name: SAST api-gateway
-      run: |
-        cd backend/api-gateway
-        semgrep --config=auto --severity=ERROR
-    
-    - name: Validate env files
-      run: |
-        ls -la backend/users-service
-        ls -la backend/academic-service
-        ls -la backend/api-gateway
-        ls -la frontend
+  test-api-gateway:
+    needs: setup
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: Download env files
+        uses: actions/download-artifact@v4
+        with:
+          name: env-files
+      - name: Install & Test
+        run: |
+          cd backend/api-gateway
+          npm ci
+          npm test
 
-    # =========================
-    # 6. Docker Build
-    # =========================
-    - name: Set up Docker Buildx
-      uses: docker/setup-buildx-action@v3
+  test-frontend:
+    needs: setup
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: Download env files
+        uses: actions/download-artifact@v4
+        with:
+          name: env-files
+      - name: Install & Test
+        run: |
+          cd frontend
+          npm ci
+          npm test
 
-    - name: Build Docker images
-      run: |
-        docker compose -f backend/docker-compose.yml build
+  # =========================================
+  # 3. SAST – Semgrep en paralelo (matrix)
+  # =========================================
+  sast:
+    needs:
+      - test-users-service
+      - test-academic-service
+      - test-api-gateway
+      - test-frontend
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        service: [users-service, academic-service, api-gateway]
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install Semgrep
+        run: pip install semgrep
+      - name: SAST – ${{ matrix.service }}
+        run: |
+          cd backend/${{ matrix.service }}
+          semgrep --config=auto --severity=ERROR
 
-    # =========================
-    # 7. SCA – Trivy
-    # =========================
-    - name: Trivy scan users-service
-      uses: aquasecurity/trivy-action@0.20.0
-      with:
-        image-ref: users-service
-        severity: CRITICAL
-        exit-code: 1
+  # =========================================
+  # 4. DOCKER BUILD
+  # =========================================
+  docker-build:
+    needs: sast
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
 
-    - name: Trivy scan academic-service
-      uses: aquasecurity/trivy-action@0.20.0
-      with:
-        image-ref: academic-service
-        severity: CRITICAL
-        exit-code: 1
+      - name: Download env files
+        uses: actions/download-artifact@v4
+        with:
+          name: env-files
 
-    - name: Trivy scan api-gateway
-      uses: aquasecurity/trivy-action@0.20.0
-      with:
-        image-ref: api-gateway
-        severity: CRITICAL
-        exit-code: 1
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
 
-    # =========================
-    # 8. Smoke test
-    # =========================
-    - name: Run docker-compose
-      run: |
-        docker compose -f backend/docker-compose.yml up -d
-        sleep 20
+      - name: Build Docker images
+        run: docker compose -f backend/docker-compose.yml build
 
-    - name: Smoke test – API Gateway health
-      run: |
-        curl -sf http://localhost:3000/health | grep -q "api-gateway OK"
-        echo "API Gateway OK"
+      - name: Save Docker images
+        run: |
+          docker save users-service   | gzip > users-service.tar.gz
+          docker save academic-service | gzip > academic-service.tar.gz
+          docker save api-gateway      | gzip > api-gateway.tar.gz
 
-    - name: Smoke test – Login (users-service via gateway)
-      run: |
-        RESPONSE=$(curl -sf -X POST http://localhost:3000/auth/login \
-          -H "Content-Type: application/json" \
-          -d '{"email":"admin@test.cl","password":"123456"}')
-        echo "$RESPONSE" | grep -q "token"
-        echo "Login OK – JWT recibido"
+      - name: Upload Docker images
+        uses: actions/upload-artifact@v4
+        with:
+          name: docker-images
+          path: "*.tar.gz"
 
-    - name: Smoke test – Courses (academic-service via gateway)
-      run: |
-        TOKEN=$(curl -sf -X POST http://localhost:3000/auth/login \
-          -H "Content-Type: application/json" \
-          -d '{"email":"admin@test.cl","password":"123456"}' \
-          | grep -o '"token":"[^"]*"' | cut -d'"' -f4)
-        curl -sf http://localhost:3000/courses \
-          -H "Authorization: Bearer $TOKEN" | grep -q "DevSecOps"
-        echo "Courses OK"
+  # =========================================
+  # 5. SCA – Trivy en paralelo (matrix)
+  # =========================================
+  trivy:
+    needs: docker-build
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        image: [users-service, academic-service, api-gateway]
+    steps:
+      - name: Download Docker images
+        uses: actions/download-artifact@v4
+        with:
+          name: docker-images
 
-    - name: Shutdown services
-      if: always()
-      run: docker compose -f backend/docker-compose.yml down || true
+      - name: Load Docker image
+        run: docker load < ${{ matrix.image }}.tar.gz
+
+      - name: Trivy scan – ${{ matrix.image }}
+        uses: aquasecurity/trivy-action@0.20.0
+        with:
+          image-ref: ${{ matrix.image }}
+          severity: CRITICAL
+          exit-code: 1
+          vuln-type: os,library
+          format: table
+
+  # =========================================
+  # 6. SMOKE TESTS
+  # =========================================
+  smoke-tests:
+    needs: trivy
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Download env files
+        uses: actions/download-artifact@v4
+        with:
+          name: env-files
+
+      - name: Download Docker images
+        uses: actions/download-artifact@v4
+        with:
+          name: docker-images
+
+      - name: Load Docker images
+        run: |
+          docker load < users-service.tar.gz
+          docker load < academic-service.tar.gz
+          docker load < api-gateway.tar.gz
+
+      - name: Run docker-compose
+        run: |
+          docker compose -f backend/docker-compose.yml up -d --no-build
+          sleep 20
+
+      - name: Smoke test – API Gateway health
+        run: |
+          curl -sf http://localhost:3000/health | grep -q "api-gateway OK"
+          echo "API Gateway OK"
+
+      - name: Smoke test – Login (users-service via gateway)
+        run: |
+          RESPONSE=$(curl -sf -X POST http://localhost:3000/auth/login \
+            -H "Content-Type: application/json" \
+            -d '{"email":"admin@test.cl","password":"123456"}')
+          echo "$RESPONSE" | grep -q "token"
+          echo "Login OK – JWT recibido"
+
+      - name: Smoke test – Courses (academic-service via gateway)
+        run: |
+          TOKEN=$(curl -sf -X POST http://localhost:3000/auth/login \
+            -H "Content-Type: application/json" \
+            -d '{"email":"admin@test.cl","password":"123456"}' \
+            | grep -o '"token":"[^"]*"' | cut -d'"' -f4)
+          curl -sf http://localhost:3000/courses \
+            -H "Authorization: Bearer $TOKEN" | grep -q "DevSecOps"
+          echo "Courses OK"
+
+      - name: Shutdown services
+        if: always()
+        run: docker compose -f backend/docker-compose.yml down || true
