@@ -6,7 +6,11 @@ services:
     image: luisfer34/devsecops-ucb:users-service-{{ image_tag }}
     container_name: users-service
     restart: unless-stopped
-    env_file: .env
+    environment:
+      PORT: "3001"
+      JWT_SECRET: "{{ jwt_secret | default('changeme-prod-secret') }}"
+    ports:
+      - "3001:3001"
     networks:
       - backend-net
 
@@ -14,7 +18,11 @@ services:
     image: luisfer34/devsecops-ucb:academic-service-{{ image_tag }}
     container_name: academic-service
     restart: unless-stopped
-    env_file: .env
+    environment:
+      PORT: "3002"
+      JWT_SECRET: "{{ jwt_secret | default('changeme-prod-secret') }}"
+    ports:
+      - "3002:3002"
     networks:
       - backend-net
 
@@ -22,7 +30,11 @@ services:
     image: luisfer34/devsecops-ucb:api-gateway-{{ image_tag }}
     container_name: api-gateway
     restart: unless-stopped
-    env_file: .env
+    environment:
+      PORT: "3000"
+      JWT_SECRET: "{{ jwt_secret | default('changeme-prod-secret') }}"
+      USERS_SERVICE_URL: "http://192.168.122.6:3001"
+      ACADEMIC_SERVICE_URL: "http://192.168.122.6:3002"
     ports:
       - "3000:3000"
     networks:

@@ -4,8 +4,11 @@ node_modules/
 # Variables de entorno (SECRETOS)
 .env
 .env.*
-# PERMITIR archivos de ejemplo
+# PERMITIR archivos de ejemplo y configuración pública de producción
 !.env.example
+!.env.production
+!ansible/templates/env.j2
+
 # Logs
 npm-debug.log
 yarn-error.log
