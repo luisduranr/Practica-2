@@ -27,7 +27,7 @@
 
     - name: Copiar archivo de variables de entorno
       template:
-        src: templates/.env.j2
+        src: templates/env.j2
         dest: "{{ deploy_dir }}/.env"
         mode: '0600'
 
