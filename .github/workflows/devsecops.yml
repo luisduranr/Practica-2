@@ -231,3 +231,64 @@ jobs:
       - name: Shutdown services
         if: always()
         run: docker compose -f backend/docker-compose.yml down || true
+
+  # =========================================
+  # 7. PUBLISH – Docker Hub + Cleanup
+  # =========================================
+  publish:
+    needs: smoke-tests
+    runs-on: [self-hosted, Linux, X64]
+    env:
+      REGISTRY: luisfer34/devsecops-ucb
+      SHA: ${{ github.sha }}
+    steps:
+      - name: Login a Docker Hub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      - name: Tag y push – users-service
+        run: |
+          docker tag users-service $REGISTRY:users-service-${SHA::7}
+          docker tag users-service $REGISTRY:users-service-latest
+          docker push $REGISTRY:users-service-${SHA::7}
+          docker push $REGISTRY:users-service-latest
+
+      - name: Tag y push – academic-service
+        run: |
+          docker tag academic-service $REGISTRY:academic-service-${SHA::7}
+          docker tag academic-service $REGISTRY:academic-service-latest
+          docker push $REGISTRY:academic-service-${SHA::7}
+          docker push $REGISTRY:academic-service-latest
+
+      - name: Tag y push – api-gateway
+        run: |
+          docker tag api-gateway $REGISTRY:api-gateway-${SHA::7}
+          docker tag api-gateway $REGISTRY:api-gateway-latest
+          docker push $REGISTRY:api-gateway-${SHA::7}
+          docker push $REGISTRY:api-gateway-latest
+
+      - name: Tag y push – frontend
+        run: |
+          docker tag frontend $REGISTRY:frontend-${SHA::7}
+          docker tag frontend $REGISTRY:frontend-latest
+          docker push $REGISTRY:frontend-${SHA::7}
+          docker push $REGISTRY:frontend-latest
+
+      - name: Limpiar imágenes del proyecto
+        if: always()
+        run: |
+          # Solo elimina las imágenes de este proyecto, no afecta otros servicios del servidor
+          docker rmi users-service    2>/dev/null || true
+          docker rmi academic-service 2>/dev/null || true
+          docker rmi api-gateway      2>/dev/null || true
+          docker rmi frontend         2>/dev/null || true
+          docker rmi $REGISTRY:users-service-${SHA::7}    2>/dev/null || true
+          docker rmi $REGISTRY:users-service-latest       2>/dev/null || true
+          docker rmi $REGISTRY:academic-service-${SHA::7} 2>/dev/null || true
+          docker rmi $REGISTRY:academic-service-latest    2>/dev/null || true
+          docker rmi $REGISTRY:api-gateway-${SHA::7}      2>/dev/null || true
+          docker rmi $REGISTRY:api-gateway-latest         2>/dev/null || true
+          docker rmi $REGISTRY:frontend-${SHA::7}         2>/dev/null || true
+          docker rmi $REGISTRY:frontend-latest            2>/dev/null || true
