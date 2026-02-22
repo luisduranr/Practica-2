@@ -84,12 +84,18 @@ jobs:
         service: [users-service, academic-service, api-gateway]
     steps:
       - uses: actions/checkout@v4
-      - name: Install Semgrep
-        run: pip install semgrep
+      - name: Setup venv
+        run: |
+          python3 -m venv venv
+          source venv/bin/activate
+          python -m ensurepip --upgrade
+          pip install --upgrade pip
+          pip install semgrep
       - name: SAST – ${{ matrix.service }}
         run: |
+          source venv/bin/activate
           cd backend/${{ matrix.service }}
-          semgrep --config=auto --severity=ERROR
+          semgrep scan --config auto
 
   # =========================================
   # 3. SAST – SonarQube en paralelo (matrix)
