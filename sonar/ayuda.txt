@@ -1,0 +1,11 @@
+(correcto en Debian 12)
+1️⃣ Crear archivo en /etc/sysctl.d/
+sudo nano /etc/sysctl.d/99-sonarqube.conf
+
+Agrega esto dentro:
+
+vm.max_map_count=262144
+fs.file-max=65536
+
+2️⃣ Aplicar sin reiniciar
+sudo sysctl --system
