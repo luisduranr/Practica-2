@@ -1,0 +1,47 @@
+version: "3.9"
+
+services:
+
+  users-service:
+    image: luisfer34/devsecops-ucb:users-service-{{ image_tag }}
+    container_name: users-service
+    restart: unless-stopped
+    env_file: .env
+    networks:
+      - backend-net
+
+  academic-service:
+    image: luisfer34/devsecops-ucb:academic-service-{{ image_tag }}
+    container_name: academic-service
+    restart: unless-stopped
+    env_file: .env
+    networks:
+      - backend-net
+
+  api-gateway:
+    image: luisfer34/devsecops-ucb:api-gateway-{{ image_tag }}
+    container_name: api-gateway
+    restart: unless-stopped
+    env_file: .env
+    ports:
+      - "3000:3000"
+    networks:
+      - backend-net
+    depends_on:
+      - users-service
+      - academic-service
+
+  frontend:
+    image: luisfer34/devsecops-ucb:frontend-{{ image_tag }}
+    container_name: frontend
+    restart: unless-stopped
+    ports:
+      - "80:80"
+    networks:
+      - backend-net
+    depends_on:
+      - api-gateway
+
+networks:
+  backend-net:
+    driver: bridge

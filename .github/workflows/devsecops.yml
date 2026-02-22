@@ -292,3 +292,39 @@ jobs:
           docker rmi $REGISTRY:api-gateway-latest         2>/dev/null || true
           docker rmi $REGISTRY:frontend-${SHA::7}         2>/dev/null || true
           docker rmi $REGISTRY:frontend-latest            2>/dev/null || true
+
+  # =========================================
+  # 8. DEPLOY – Ansible → debian2
+  # =========================================
+  deploy:
+    needs: publish
+    runs-on: [self-hosted, Linux, X64]
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Instalar Ansible (si no está disponible)
+        run: |
+          if ! command -v ansible-playbook &> /dev/null; then
+            sudo apt-get update -qq
+            sudo apt-get install -y ansible
+          fi
+          ansible --version
+
+      - name: Configurar clave SSH para debian2
+        run: |
+          mkdir -p ~/.ssh
+          echo "${{ secrets.DEPLOY_SSH_KEY }}" > ~/.ssh/deploy_key
+          chmod 600 ~/.ssh/deploy_key
+          ssh-keyscan -H 192.168.122.6 >> ~/.ssh/known_hosts
+
+      - name: Ejecutar playbook de despliegue
+        run: |
+          ansible-playbook \
+            -i ansible/inventory.ini \
+            ansible/deploy.yml \
+            -e "image_tag=${GITHUB_SHA::7}" \
+            -e "jwt_secret=${{ secrets.JWT_SECRET }}"
+
+      - name: Limpiar clave SSH del runner
+        if: always()
+        run: rm -f ~/.ssh/deploy_key

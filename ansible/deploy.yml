@@ -1,0 +1,70 @@
+---
+- name: Deploy DevSecOps stack en debian2
+  hosts: debian2
+  become: true
+
+  vars:
+    registry: luisfer34/devsecops-ucb
+    image_tag: "{{ image_tag | default('latest') }}"
+    deploy_dir: /opt/devsecops
+
+  tasks:
+
+    # ──────────────────────────────────────────
+    # 1. Preparar el servidor
+    # ──────────────────────────────────────────
+    - name: Crear directorio de despliegue
+      file:
+        path: "{{ deploy_dir }}"
+        state: directory
+        mode: '0755'
+
+    - name: Copiar docker-compose de producción
+      template:
+        src: templates/docker-compose.prod.yml.j2
+        dest: "{{ deploy_dir }}/docker-compose.yml"
+        mode: '0644'
+
+    - name: Copiar archivo de variables de entorno
+      template:
+        src: templates/.env.j2
+        dest: "{{ deploy_dir }}/.env"
+        mode: '0600'
+
+    # ──────────────────────────────────────────
+    # 2. Descargar imágenes desde Docker Hub
+    # ──────────────────────────────────────────
+    - name: Pull imágenes desde Docker Hub
+      shell: "docker pull {{ registry }}:{{ item }}-{{ image_tag }}"
+      loop:
+        - users-service
+        - academic-service
+        - api-gateway
+        - frontend
+
+    # ──────────────────────────────────────────
+    # 3. Levantar servicios
+    # ──────────────────────────────────────────
+    - name: Bajar servicios anteriores
+      shell: "docker compose -f {{ deploy_dir }}/docker-compose.yml down --remove-orphans"
+      ignore_errors: true
+
+    - name: Levantar servicios actualizados
+      shell: "docker compose -f {{ deploy_dir }}/docker-compose.yml up -d --no-build"
+
+    # ──────────────────────────────────────────
+    # 4. Verificar que los servicios están up
+    # ──────────────────────────────────────────
+    - name: Esperar que el API Gateway responda
+      uri:
+        url: http://localhost:3000/health
+        status_code: 200
+        return_content: true
+      register: health_check
+      retries: 10
+      delay: 5
+      until: health_check.status == 200
+
+    - name: Mostrar respuesta de health check
+      debug:
+        msg: "✅ Despliegue exitoso: {{ health_check.content }}"
