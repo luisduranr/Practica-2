@@ -135,7 +135,7 @@ jobs:
           npm test -- --coverage --coverageReporters=lcov 2>/dev/null || npm test
 
       - name: SonarQube Scan – ${{ matrix.service }}
-        uses: SonarSource/sonarqube-scan-action@v4
+        uses: SonarSource/sonarqube-scan-action@v6
         env:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
           SONAR_HOST_URL: ${{ secrets.SONAR_HOST_URL }}
@@ -166,19 +166,6 @@ jobs:
       - name: Build Docker images
         run: docker compose -f backend/docker-compose.yml build
 
-      - name: Save Docker images
-        run: |
-          docker save users-service    | gzip > users-service.tar.gz
-          docker save academic-service | gzip > academic-service.tar.gz
-          docker save api-gateway      | gzip > api-gateway.tar.gz
-          docker save frontend         | gzip > frontend.tar.gz
-
-      - name: Upload Docker images
-        uses: actions/upload-artifact@v4
-        with:
-          name: docker-images
-          path: "*.tar.gz"
-
   # =========================================
   # 5. SCA – Trivy en paralelo (matrix)
   # =========================================
@@ -189,14 +176,6 @@ jobs:
       matrix:
         image: [users-service, academic-service, api-gateway, frontend]
     steps:
-      - name: Download Docker images
-        uses: actions/download-artifact@v4
-        with:
-          name: docker-images
-
-      - name: Load Docker image
-        run: docker load < ${{ matrix.image }}.tar.gz
-
       - name: Trivy scan – ${{ matrix.image }}
         uses: aquasecurity/trivy-action@0.20.0
         with:
@@ -220,18 +199,6 @@ jobs:
           cp backend/users-service/.env.example  backend/users-service/.env
           cp backend/academic-service/.env.example backend/academic-service/.env
           cp backend/api-gateway/.env.example     backend/api-gateway/.env
-
-      - name: Download Docker images
-        uses: actions/download-artifact@v4
-        with:
-          name: docker-images
-
-      - name: Load Docker images
-        run: |
-          docker load < users-service.tar.gz
-          docker load < academic-service.tar.gz
-          docker load < api-gateway.tar.gz
-          docker load < frontend.tar.gz
 
       - name: Run docker-compose
         run: |
