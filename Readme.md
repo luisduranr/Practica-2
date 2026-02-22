@@ -1,7 +1,7 @@
 # Arquitectura CI/CD DevSecOps
 
 Este proyecto implementa un pipeline de integración y entrega continua con prácticas de seguridad integradas (DevSecOps). Cada vez que se sube código a la rama `main`, el pipeline se activa automáticamente.
-
+@z4&4kl5q%oxwIRhEj
 ---
 
 ## Justificación Técnica de Decisiones
